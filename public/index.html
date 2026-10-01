@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Gestión de Inscripciones - AJUPTEL Carabobo</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        h1, h2, h3, h4, h5, h6, .card-header {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-weight: 600;
+            color: #0d6efd;
+        }
+        .navbar-brand img { max-height: 50px; }
+    </style>
+</head>
+<body class="bg-light">
+
+    <nav class="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+        <div class="container">
+            <a class="navbar-brand d-flex align-items-center gap-2" href="#">
+                <img src="logo.jpg" alt="Logo" onerror="this.style.display='none'">
+                <span class="fs-4 text-white">AJUPTEL Carabobo - Control de Inscripciones</span>
+            </a>
+        </div>
+    </nav>
+
+    <div class="container my-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>Gestión de Jubilados y Afiliados</h2>
+            <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#registroModal" onclick="limpiarFormulario()">
+                + Nuevo Registro
+            </button>
+        </div>
+
+        <div class="card shadow-sm">
+            <div class="card-header bg-white py-3">
+                <h5 class="mb-0">Listado de Inscripciones Nómina CANTV</h5>
+            </div>
+            <div class="card-body table-responsive">
+                <table class="table table-striped table-hover align-middle">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ID</th>
+                            <th>Cédula</th>
+                            <th>Nombres y Apellidos</th>
+                            <th>P00</th>
+                            <th>Status</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tablaRegistros"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal Formulario -->
+    <div class="modal fade" id="registroModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <form id="formInscripcion">
+                    <div class="modal-header bg-primary text-white">
+                        <h5 class="modal-title">Formulario de Inscripción / Actualización</h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body row g-3">
+                        <input type="hidden" id="registroId">
+                        
+                        <div class="col-md-6"><label class="form-label">Nombres</label><input type="text" class="form-control" id="nombres" required></div>
+                        <div class="col-md-6"><label class="form-label">Apellidos</label><input type="text" class="form-control" id="apellidos" required></div>
+                        <div class="col-md-4"><label class="form-label">Cédula</label><input type="text" class="form-control" id="cedula" required></div>
+                        <div class="col-md-4"><label class="form-label">P00</label><input type="text" class="form-control" id="p00"></div>
+                        <div class="col-md-4"><label class="form-label">Fecha de Nacimiento</label><input type="date" class="form-control" id="fecha_nacimiento"></div>
+                        <div class="col-12"><label class="form-label">Dirección de Habitación</label><textarea class="form-control" id="direccion" rows="2"></textarea></div>
+                        <div class="col-md-4"><label class="form-label">Teléfono Habitación</label><input type="text" class="form-control" id="telefono_hab"></div>
+                        <div class="col-md-4"><label class="form-label">Teléfono Celular</label><input type="text" class="form-control" id="telefono_cel"></div>
+                        <div class="col-md-4"><label class="form-label">Teléfono Alternativo</label><input type="text" class="form-control" id="telefono_alt"></div>
+                        <div class="col-md-6"><label class="form-label">Correo Electrónico</label><input type="email" class="form-control" id="correo"></div>
+                        <div class="col-md-6"><label class="form-label">Correo Alternativo</label><input type="email" class="form-control" id="correo_alt"></div>
+                        
+                        <!-- Sección Dinámica: Familiares Ascendentes -->
+                        <div class="col-12">
+                            <div class="card border-primary mb-2">
+                                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center py-2" style="color: white !important;">
+                                    <span>Familiares Ascendentes (Padres, Abuelos, etc.)</span>
+                                    <button type="button" class="btn btn-sm btn-light text-primary fw-bold" onclick="agregarFamiliar('asc')">+ Agregar Ascendiente</button>
+                                </div>
+                                <div class="card-body" id="containerAscendientes"></div>
+                            </div>
+                        </div>
+
+                        <!-- Sección Dinámica: Familiares Descendientes -->
+                        <div class="col-12">
+                            <div class="card border-success mb-2">
+                                <div class="card-header bg-success text-white d-flex justify-content-between align-items-center py-2" style="color: white !important;">
+                                    <span>Familiares Descendientes (Hijos, Nietos, etc.)</span>
+                                    <button type="button" class="btn btn-sm btn-light text-success fw-bold" onclick="agregarFamiliar('desc')">+ Agregar Descendiente</button>
+                                </div>
+                                <div class="card-body" id="containerDescendientes"></div>
+                            </div>
+                        </div>
+
+                        <div class="col-md-12"><label class="form-label">Contacto Alternativo</label><input type="text" class="form-control" id="contacto_alt"></div>
+                        <div class="col-md-6">
+                            <label class="form-label">Status Social</label>
+                            <select class="form-select" id="status_social">
+                                <option value="Estable">Estable</option>
+                                <option value="Precario">Precario</option>
+                                <option value="En Abandono">En Abandono</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label">Discapacidad</label>
+                            <select class="form-select" id="discapacidad">
+                                <option value="No posee">No posee</option>
+                                <option value="Sí posee">Sí posee</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3"><label class="form-label">¿Cuál?</label><input type="text" class="form-control" id="detalle_discapacidad"></div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn btn-success">Guardar Registro</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API_URL = '/api/registros';
+        const modal = new bootstrap.Modal(document.getElementById('registroModal'));
+
+        document.addEventListener('DOMContentLoaded', cargarRegistros);
+
+        function cargarRegistros() {
+            fetch(API_URL).then(res => res.json()).then(data => {
+                const tbody = document.getElementById('tablaRegistros');
+                tbody.innerHTML = '';
+                data.forEach(item => {
+                    tbody.innerHTML += `
+                        <tr>
+                            <td>${item.id}</td>
+                            <td>${item.cedula}</td>
+                            <td>${item.nombres} ${item.apellidos}</td>
+                            <td>${item.p00 || ''}</td>
+                            <td><span class="badge bg-secondary">${item.status_social || ''}</span></td>
+                            <td>
+                                <a href="${API_URL}/${item.id}/pdf" target="_blank" class="btn btn-sm btn-info text-white">PDF</a>
+                                <button class="btn btn-sm btn-warning text-white" onclick="editarRegistro(${item.id})">Modificar</button>
+                                <button class="btn btn-sm btn-danger" onclick="eliminarRegistro(${item.id})">Borrar</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            });
+        }
+
+        function agregarFamiliar(tipo, datos = {}) {
+            const containerId = tipo === 'asc' ? 'containerAscendientes' : 'containerDescendientes';
+            const container = document.getElementById(containerId);
+            
+            const div = document.createElement('div');
+            div.className = 'row g-2 mb-2 align-items-center familiar-row';
+            div.innerHTML = `
+                <div class="col-md-5">
+                    <input type="text" class="form-control form-control-sm fam-nombre" placeholder="Nombres y Apellidos" value="${datos.nombresApellidos || ''}" required>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control form-control-sm fam-cedula" placeholder="Cédula" value="${datos.cedula || ''}" required>
+                </div>
+                <div class="col-md-3">
+                    <input type="text" class="form-control form-control-sm fam-parentesco" placeholder="Parentesco (Ej: Madre, Hijo)" value="${datos.parentesco || ''}" required>
+                </div>
+                <div class="col-md-1 text-center">
+                    <button type="button" class="btn btn-sm btn-danger" onclick="this.closest('.familiar-row').remove()">X</button>
+                </div>
+            `;
+            container.appendChild(div);
+        }
+
+        function obtenerFamiliares(containerId) {
+            const rows = document.querySelectorAll(`#${containerId} .familiar-row`);
+            const lista = [];
+            rows.forEach(row => {
+                lista.push({
+                    nombresApellidos: row.querySelector('.fam-nombre').value,
+                    cedula: row.querySelector('.fam-cedula').value,
+                    parentesco: row.querySelector('.fam-parentesco').value
+                });
+            });
+            return JSON.stringify(lista);
+        }
+
+        function limpiarFormulario() {
+            document.getElementById('formInscripcion').reset();
+            document.getElementById('registroId').value = '';
+            document.getElementById('containerAscendientes').innerHTML = '';
+            document.getElementById('containerDescendientes').innerHTML = '';
+        }
+
+        document.getElementById('formInscripcion').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = document.getElementById('registroId').value;
+            const data = {
+                nombres: document.getElementById('nombres').value,
+                apellidos: document.getElementById('apellidos').value,
+                cedula: document.getElementById('cedula').value,
+                p00: document.getElementById('p00').value,
+                fecha_nacimiento: document.getElementById('fecha_nacimiento').value,
+                direccion: document.getElementById('direccion').value,
+                telefono_hab: document.getElementById('telefono_hab').value,
+                telefono_cel: document.getElementById('telefono_cel').value,
+                telefono_alt: document.getElementById('telefono_alt').value,
+                correo: document.getElementById('correo').value,
+                correo_alt: document.getElementById('correo_alt').value,
+                ascendientes_json: obtenerFamiliares('containerAscendientes'),
+                descendientes_json: obtenerFamiliares('containerDescendientes'),
+                contacto_alt: document.getElementById('contacto_alt').value,
+                status_social: document.getElementById('status_social').value,
+                discapacidad: document.getElementById('discapacidad').value,
+                detalle_discapacidad: document.getElementById('detalle_discapacidad').value
+            };
+
+            const endpoint = id ? `${API_URL}/${id}` : API_URL;
+            const metodo = id ? 'PUT' : 'POST';
+
+            fetch(endpoint, {
+                method: metodo,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data)
+            })
+            .then(res => res.json())
+            .then(() => {
+                modal.hide();
+                cargarRegistros();
+            })
+            .catch(err => console.error("Error al guardar:", err));
+        });
+
+        function editarRegistro(id) {
+            fetch(`${API_URL}/${id}`).then(res => res.json()).then(item => {
+                document.getElementById('registroId').value = item.id;
+                document.getElementById('nombres').value = item.nombres || '';
+                document.getElementById('apellidos').value = item.apellidos || '';
+                document.getElementById('cedula').value = item.cedula || '';
+                document.getElementById('p00').value = item.p00 || '';
+                document.getElementById('fecha_nacimiento').value = item.fecha_nacimiento || '';
+                document.getElementById('direccion').value = item.direccion || '';
+                document.getElementById('telefono_hab').value = item.telefono_hab || '';
+                document.getElementById('telefono_cel').value = item.telefono_cel || '';
+                document.getElementById('telefono_alt').value = item.telefono_alt || '';
+                document.getElementById('correo').value = item.correo || '';
+                document.getElementById('correo_alt').value = item.correo_alt || '';
+                document.getElementById('contacto_alt').value = item.contacto_alt || '';
+                document.getElementById('status_social').value = item.status_social || 'Estable';
+                document.getElementById('discapacidad').value = item.discapacidad || 'No posee';
+                document.getElementById('detalle_discapacidad').value = item.detalle_discapacidad || '';
+
+                document.getElementById('containerAscendientes').innerHTML = '';
+                try {
+                    const asc = JSON.parse(item.ascendientes_json || '[]');
+                    asc.forEach(f => agregarFamiliar('asc', f));
+                } catch(e) {}
+
+                document.getElementById('containerDescendientes').innerHTML = '';
+                try {
+                    const desc = JSON.parse(item.descendientes_json || '[]');
+                    desc.forEach(f => agregarFamiliar('desc', f));
+                } catch(e) {}
+
+                modal.show();
+            });
+        }
+
+        function eliminarRegistro(id) {
+            if (confirm('¿Desea eliminar este registro?')) {
+                fetch(`${API_URL}/${id}`, { method: 'DELETE' }).then(() => cargarRegistros());
+            }
+        }
+    </script>
+</body>
+</html>
