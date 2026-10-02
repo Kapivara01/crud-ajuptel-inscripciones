@@ -111,7 +111,7 @@ app.delete('/api/registros/:id', (req, res) => {
     });
 });
 
-// Ruta PDF con Diseño Fluido y Espaciado Real
+// Ruta PDF con Corrección Fina de Líneas y Espaciados
 app.get('/api/registros/:id/pdf', (req, res) => {
     db.get(`SELECT * FROM inscripciones WHERE id = ?`, [req.params.id], (err, item) => {
         if (err || !item) return res.status(404).send('Registro no encontrado');
@@ -130,7 +130,7 @@ app.get('/api/registros/:id/pdf', (req, res) => {
         doc.text('INFORMACIÓN CONFIDENCIAL', -280, -25, { align: 'center', width: 560 });
         doc.restore();
 
-        // 1. LOGOTIPO INSTITUCIONAL (Ya verificado en tamaño grande de 90px)
+        // 1. LOGOTIPO INSTITUCIONAL
         const logoPath = path.join(__dirname, 'public', 'logo.jpg');
         if (fs.existsSync(logoPath)) {
             try {
@@ -148,18 +148,18 @@ app.get('/api/registros/:id/pdf', (req, res) => {
         doc.moveDown(0.8);
         doc.fontSize(8).font('Helvetica-Bold').text('( ACEPTO LA INSCRIPCION EN AJUPTEL CARABOBO Y AUTORIZANDO EL DESCUENTO DE MI CUENTA NÓMINA CANTV )', { align: 'center' });
         
-        doc.moveDown(1.5); // Espacio inicial antes de los datos
+        doc.moveDown(1.5);
 
-        // Función con flujo puramente dinámico (doc.y) para asegurar que el espacio se expanda de verdad
+        // Función estandarizada para pintar campos con línea inferior exacta
         function drawField(label, value) {
             const startY = doc.y;
-            doc.fontSize(12.5).font('Helvetica-Bold').text(label + ':', 45, startY, { width: 140 });
-            doc.font('Helvetica').fontSize(10.5).text(value || '', 190, startY, { width: 365 });
+            doc.fontSize(10).font('Helvetica-Bold').text(label + ':', 45, startY, { width: 165, lineBreak: false });
+            doc.font('Helvetica').fontSize(10).text(value || '', 215, startY, { width: 350 });
             
-            // Línea separadora sutil debajo del campo
-            doc.moveDown(0.5);
+            const endY = Math.max(doc.y, startY + 12);
+            doc.y = endY + 4;
             doc.moveTo(45, doc.y).lineTo(567, doc.y).strokeColor('#888888').lineWidth(0.5).stroke();
-            doc.moveDown(0.9); // Espacio vertical amplio que distribuye los campos hacia abajo
+            doc.moveDown(0.5);
         }
 
         drawField('NOMBRES', item.nombres);
@@ -174,17 +174,19 @@ app.get('/api/registros/:id/pdf', (req, res) => {
         drawField('CORREO', item.correo);
         drawField('CORREO ALT.', item.correo_alt);
         
+        doc.moveDown(0.3);
+
         // Ascendientes
         try {
             const ascList = JSON.parse(item.ascendientes_json || '[]');
             if (ascList.length > 0) {
                 doc.fontSize(10.5).font('Helvetica-Bold').text('ASCENDIENTES:', 45, doc.y);
-                doc.moveDown(0.4);
+                doc.moveDown(0.3);
                 ascList.forEach((fam) => {
                     doc.font('Helvetica').fontSize(10).text(`- ${fam.parentesco}: ${fam.nombresApellidos} (C.I: ${fam.cedula})`, 55, doc.y, { width: 500 });
-                    doc.moveDown(0.5);
+                    doc.moveDown(0.4);
                 });
-                doc.moveDown(0.6);
+                doc.moveDown(0.3);
             }
         } catch (e) {}
 
@@ -193,27 +195,34 @@ app.get('/api/registros/:id/pdf', (req, res) => {
             const descList = JSON.parse(item.descendientes_json || '[]');
             if (descList.length > 0) {
                 doc.fontSize(10.5).font('Helvetica-Bold').text('DESCENDIENTES:', 45, doc.y);
-                doc.moveDown(0.4);
+                doc.moveDown(0.3);
                 descList.forEach((fam) => {
                     doc.font('Helvetica').fontSize(10).text(`- ${fam.parentesco}: ${fam.nombresApellidos} (C.I: ${fam.cedula})`, 55, doc.y, { width: 500 });
-                    doc.moveDown(0.5);
+                    doc.moveDown(0.4);
                 });
-                doc.moveDown(0.6);
+                doc.moveDown(0.3);
             }
         } catch (e) {}
 
+        // Contacto Alternativo ahora usa la misma función estándar para asegurar su línea divisoria
         drawField('CONTACTO ALT.', item.contacto_alt);
 
-        doc.fontSize(10.5).font('Helvetica-Bold').text('STATUS SOCIAL:', 45, doc.y);
-        const est = item.status_social;
-        doc.font('Helvetica').fontSize(10).text(`[ ${est === 'Estable' ? 'X' : ' '} ] ESTABLE    [ ${est === 'Precario' ? 'X' : ' '} ] PRECARIO    [ ${est === 'En Abandono' ? 'X' : ' '} ] EN ABANDONO`, 190, doc.y - 13);
-        doc.moveDown(1.4);
+        doc.moveDown(0.3);
 
-        doc.fontSize(10.5).font('Helvetica-Bold').text('DISCAPACIDAD:', 45, doc.y);
+        // Status Social
+        const statusY = doc.y;
+        doc.fontSize(10.5).font('Helvetica-Bold').text('STATUS SOCIAL:', 45, statusY);
+        const est = item.status_social;
+        doc.font('Helvetica').fontSize(10).text(`[ ${est === 'Estable' ? 'X' : ' '} ] ESTABLE    [ ${est === 'Precario' ? 'X' : ' '} ] PRECARIO    [ ${est === 'En Abandono' ? 'X' : ' '} ] EN ABANDONO`, 190, statusY);
+        doc.moveDown(1.2);
+
+        // Discapacidad
+        const dispY = doc.y;
+        doc.fontSize(10.5).font('Helvetica-Bold').text('DISCAPACIDAD:', 45, dispY);
         const disp = item.discapacidad;
-        doc.font('Helvetica').fontSize(10).text(`[ ${disp === 'No posee' ? 'X' : ' '} ] NO POSEE    [ ${disp === 'Sí posee' ? 'X' : ' '} ] SI POSEE  =>  ¿CUAL?: ${item.detalle_discapacidad || ''}`, 190, doc.y - 13);
+        doc.font('Helvetica').fontSize(10).text(`[ ${disp === 'No posee' ? 'X' : ' '} ] NO POSEE    [ ${disp === 'Sí posee' ? 'X' : ' '} ] SI POSEE  =>  ¿CUAL?: ${item.detalle_discapacidad || ''}`, 190, dispY);
         
-        // 3. BLOQUE DE FIRMAS (Posicionado de forma proporcional más abajo para cerrar la hoja)
+        // 3. BLOQUE DE FIRMAS
         const signatureY = 700;
         doc.fontSize(9.5);
         doc.text('____________________________________', 60, signatureY);
