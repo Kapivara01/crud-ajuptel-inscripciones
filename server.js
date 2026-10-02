@@ -10,9 +10,11 @@ const PORT = process.env.PORT || 3000;
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
+
 app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
+
 const dbFile = path.join(__dirname, 'ajuptel.db');
 const db = new sqlite3.Database(dbFile, (err) => {
     if (err) console.error('Error al conectar con la base de datos:', err.message);
@@ -109,112 +111,117 @@ app.delete('/api/registros/:id', (req, res) => {
     });
 });
 
-// Ruta PDF
+// Ruta PDF con Diseño Fluido y Espaciado Real
 app.get('/api/registros/:id/pdf', (req, res) => {
     db.get(`SELECT * FROM inscripciones WHERE id = ?`, [req.params.id], (err, item) => {
         if (err || !item) return res.status(404).send('Registro no encontrado');
 
-        const doc = new PDFDocument({ size: 'LETTER', margin: 40 });
+        const doc = new PDFDocument({ size: 'LETTER', margin: 45 });
         res.setHeader('Content-Type', 'application/pdf');
         res.setHeader('Content-Disposition', `inline; filename=Inscripcion_${item.cedula}.pdf`);
         doc.pipe(res);
 
-        // Marca de agua
+        // Marca de agua centralizada
         doc.save();
-        doc.opacity(0.08);
-        doc.font('Helvetica-Bold').fontSize(32);
+        doc.opacity(0.07);
+        doc.font('Helvetica-Bold').fontSize(40);
         doc.translate(306, 396);
         doc.rotate(-45);
-        doc.text('INFORMACIÓN CONFIDENCIAL', -250, -20, { align: 'center', width: 500 });
+        doc.text('INFORMACIÓN CONFIDENCIAL', -280, -25, { align: 'center', width: 560 });
         doc.restore();
 
-       // Logo seguro con depuración
+        // 1. LOGOTIPO INSTITUCIONAL (Ya verificado en tamaño grande de 90px)
         const logoPath = path.join(__dirname, 'public', 'logo.jpg');
-        console.log('Ruta absoluta buscada para el logo:', logoPath);
-        console.log('¿El archivo existe físicamente?:', fs.existsSync(logoPath));
-
         if (fs.existsSync(logoPath)) {
-        try {
-        doc.image(logoPath, 40, 20, { width: 45 });
-        console.log('¡Logo insertado correctamente en el PDF!');
-        } catch (e) {
-        console.error('Error al intentar renderizar la imagen en el PDF:', e.message);
-        }
-        } else {
-        console.error('¡ATENCIÓN: El archivo de imagen no se encontró en la ruta especificada!');
+            try {
+                doc.image(logoPath, 45, 30, { width: 95, height: 70 });
+            } catch (e) {
+                console.error('Error al renderizar el logo:', e.message);
+            }
         }
 
-        // Encabezado
-        doc.fontSize(9).font('Helvetica-Bold').text('ASOCIACIÓN DE JUBILADOS Y PENSIONADOS DE TELECOMUNICACIONES', 95, 22, { align: 'center', width: 440 });
-        doc.fontSize(10).text('AJUPTEL CARABOBO', { align: 'center', width: 440 });
-        doc.fontSize(7).font('Helvetica').text('PLANILLA DE INSCRIPCIÓN Y ACTUALIZACIÓN DE DATOS', { align: 'center', width: 440 });
+        // 2. ENCABEZADO INSTITUCIONAL CENTRADO
+        doc.fontSize(11).font('Helvetica-Bold').text('ASOCIACIÓN DE JUBILADOS Y PENSIONADOS DE TELECOMUNICACIONES', 145, 38, { align: 'center', width: 390 });
+        doc.fontSize(12).text('AJUPTEL CARABOBO', { align: 'center', width: 390 });
+        doc.fontSize(8.5).font('Helvetica').text('PLANILLA DE INSCRIPCIÓN Y ACTUALIZACIÓN DE DATOS', { align: 'center', width: 390 });
 
-        doc.moveDown(0.5);
-        doc.fontSize(6.5).font('Helvetica-Bold').text('( ACEPTO LA INSCRIPCION EN AJUPTEL CARABOBO Y AUTORIZANDO EL DESCUENTO DE MI CUENTA NÓMINA CANTV )', { align: 'center' });
+        doc.moveDown(0.8);
+        doc.fontSize(8).font('Helvetica-Bold').text('( ACEPTO LA INSCRIPCION EN AJUPTEL CARABOBO Y AUTORIZANDO EL DESCUENTO DE MI CUENTA NÓMINA CANTV )', { align: 'center' });
         
-        function drawField(label, value, yPos) {
-            doc.fontSize(8).font('Helvetica-Bold').text(label + ':', 40, yPos, { width: 110 });
-            doc.font('Helvetica').text(value || '', 155, yPos, { width: 415 });
-            doc.moveTo(40, yPos + 10).lineTo(572, yPos + 10).strokeColor('#777777').lineWidth(0.3).stroke();
+        doc.moveDown(1.5); // Espacio inicial antes de los datos
+
+        // Función con flujo puramente dinámico (doc.y) para asegurar que el espacio se expanda de verdad
+        function drawField(label, value) {
+            const startY = doc.y;
+            doc.fontSize(12.5).font('Helvetica-Bold').text(label + ':', 45, startY, { width: 140 });
+            doc.font('Helvetica').fontSize(10.5).text(value || '', 190, startY, { width: 365 });
+            
+            // Línea separadora sutil debajo del campo
+            doc.moveDown(0.5);
+            doc.moveTo(45, doc.y).lineTo(567, doc.y).strokeColor('#888888').lineWidth(0.5).stroke();
+            doc.moveDown(0.9); // Espacio vertical amplio que distribuye los campos hacia abajo
         }
 
-        let y = 105;
-        const gap = 16;
-
-        drawField('NOMBRES', item.nombres, y); y += gap;
-        drawField('APELLIDOS', item.apellidos, y); y += gap;
-        drawField('CÉDULA', item.cedula, y); y += gap;
-        drawField('P00', item.p00, y); y += gap;
-        drawField('FECHA NACIMIENTO', item.fecha_nacimiento, y); y += gap;
-        drawField('DIRECCIÓN', item.direccion, y); y += gap;
-        drawField('TLF HABITACIÓN', item.telefono_hab, y); y += gap;
-        drawField('TLF CELULAR', item.telefono_cel, y); y += gap;
-        drawField('TLF ALTERNATIVO', item.telefono_alt, y); y += gap;
-        drawField('CORREO', item.correo, y); y += gap;
-        drawField('CORREO ALT.', item.correo_alt, y); y += gap;
+        drawField('NOMBRES', item.nombres);
+        drawField('APELLIDOS', item.apellidos);
+        drawField('CÉDULA', item.cedula);
+        drawField('P00', item.p00);
+        drawField('FECHA NACIMIENTO', item.fecha_nacimiento);
+        drawField('DIRECCIÓN', item.direccion);
+        drawField('TLF HABITACIÓN', item.telefono_hab);
+        drawField('TLF CELULAR', item.telefono_cel);
+        drawField('TLF ALTERNATIVO', item.telefono_alt);
+        drawField('CORREO', item.correo);
+        drawField('CORREO ALT.', item.correo_alt);
         
+        // Ascendientes
         try {
             const ascList = JSON.parse(item.ascendientes_json || '[]');
             if (ascList.length > 0) {
-                doc.fontSize(8).font('Helvetica-Bold').text('ASCENDIENTES:', 40, y);
-                y += 12;
+                doc.fontSize(10.5).font('Helvetica-Bold').text('ASCENDIENTES:', 45, doc.y);
+                doc.moveDown(0.4);
                 ascList.forEach((fam) => {
-                    doc.font('Helvetica').text(`- ${fam.parentesco}: ${fam.nombresApellidos} (C.I: ${fam.cedula})`, 45, y, { width: 520 });
-                    y += 14;
+                    doc.font('Helvetica').fontSize(10).text(`- ${fam.parentesco}: ${fam.nombresApellidos} (C.I: ${fam.cedula})`, 55, doc.y, { width: 500 });
+                    doc.moveDown(0.5);
                 });
+                doc.moveDown(0.6);
             }
         } catch (e) {}
 
+        // Descendientes
         try {
             const descList = JSON.parse(item.descendientes_json || '[]');
             if (descList.length > 0) {
-                doc.fontSize(8).font('Helvetica-Bold').text('DESCENDIENTES:', 40, y);
-                y += 12;
+                doc.fontSize(10.5).font('Helvetica-Bold').text('DESCENDIENTES:', 45, doc.y);
+                doc.moveDown(0.4);
                 descList.forEach((fam) => {
-                    doc.font('Helvetica').text(`- ${fam.parentesco}: ${fam.nombresApellidos} (C.I: ${fam.cedula})`, 45, y, { width: 520 });
-                    y += 14;
+                    doc.font('Helvetica').fontSize(10).text(`- ${fam.parentesco}: ${fam.nombresApellidos} (C.I: ${fam.cedula})`, 55, doc.y, { width: 500 });
+                    doc.moveDown(0.5);
                 });
+                doc.moveDown(0.6);
             }
         } catch (e) {}
 
-        drawField('CONTACTO ALT.', item.contacto_alt, y); y += gap;
+        drawField('CONTACTO ALT.', item.contacto_alt);
 
-        doc.fontSize(8).font('Helvetica-Bold').text('STATUS SOCIAL:', 40, y);
+        doc.fontSize(10.5).font('Helvetica-Bold').text('STATUS SOCIAL:', 45, doc.y);
         const est = item.status_social;
-        doc.font('Helvetica').text(`[ ${est === 'Estable' ? 'X' : ' '} ] ESTABLE    [ ${est === 'Precario' ? 'X' : ' '} ] PRECARIO    [ ${est === 'En Abandono' ? 'X' : ' '} ] EN ABANDONO`, 155, y);
-        y += gap;
+        doc.font('Helvetica').fontSize(10).text(`[ ${est === 'Estable' ? 'X' : ' '} ] ESTABLE    [ ${est === 'Precario' ? 'X' : ' '} ] PRECARIO    [ ${est === 'En Abandono' ? 'X' : ' '} ] EN ABANDONO`, 190, doc.y - 13);
+        doc.moveDown(1.4);
 
-        doc.font('Helvetica-Bold').text('DISCAPACIDAD:', 40, y);
+        doc.fontSize(10.5).font('Helvetica-Bold').text('DISCAPACIDAD:', 45, doc.y);
         const disp = item.discapacidad;
-        doc.font('Helvetica').text(`[ ${disp === 'No posee' ? 'X' : ' '} ] NO POSEE    [ ${disp === 'Sí posee' ? 'X' : ' '} ] SI POSEE  =>  ¿CUAL?: ${item.detalle_discapacidad || ''}`, 155, y);
-        y += 35;
-
-        doc.fontSize(8);
-        doc.text('____________________________________', 60, y);
-        doc.text('____________________________________', 330, y);
-        y += 10;
-        doc.font('Helvetica-Bold').text('FIRMA DEL JUBILADO', 95, y);
-        doc.font('Helvetica-Bold').text('FIRMA Y SELLO DE AJUPTEL CARABOBO', 340, y);
+        doc.font('Helvetica').fontSize(10).text(`[ ${disp === 'No posee' ? 'X' : ' '} ] NO POSEE    [ ${disp === 'Sí posee' ? 'X' : ' '} ] SI POSEE  =>  ¿CUAL?: ${item.detalle_discapacidad || ''}`, 190, doc.y - 13);
+        
+        // 3. BLOQUE DE FIRMAS (Posicionado de forma proporcional más abajo para cerrar la hoja)
+        const signatureY = 700;
+        doc.fontSize(9.5);
+        doc.text('____________________________________', 60, signatureY);
+        doc.text('____________________________________', 325, signatureY);
+        
+        doc.font('Helvetica-Bold').fontSize(9.5);
+        doc.text('FIRMA DEL JUBILADO', 95, signatureY + 14);
+        doc.text('FIRMA Y SELLO DE AJUPTEL CARABOBO', 335, signatureY + 14);
 
         doc.end();
     });
