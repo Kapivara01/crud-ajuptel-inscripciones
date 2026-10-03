@@ -225,6 +225,16 @@
         document.addEventListener('DOMContentLoaded', () => {
             cargarRegistros();
 
+            // Limpiar formulario al hacer clic en "Nuevo Registro"
+            document.getElementById('btnNuevoRegistro').addEventListener('click', () => {
+                document.getElementById('formAfiliado').reset();
+                document.getElementById('registroId').value = ''; // ¡Borra el ID para que sea un POST limpio!
+                document.getElementById('ascendientesContainer').innerHTML = '';
+                document.getElementById('descendientesContainer').innerHTML = '';
+                document.getElementById('modalTitulo').innerText = 'Registrar Afiliado';
+                document.getElementById('divDetalleDiscapacidad').style.display = 'none';
+            });
+
             const form = document.getElementById('formAfiliado');
             form.addEventListener('submit', async (e) => {
                 e.preventDefault();

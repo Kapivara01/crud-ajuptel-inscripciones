@@ -113,7 +113,6 @@ app.delete('/api/registros/:id', (req, res) => {
         res.json({ message: 'Eliminado con éxito' });
     });
 });
-
 // RUTA PDF: Generar Planilla en Blanco
 app.get('/api/planilla-en-blanco/pdf', (req, res) => {
     const doc = new PDFDocument({ size: 'LETTER', margin: 45 });
