@@ -50,18 +50,29 @@
     </nav>
 
     <div class="container my-4">
-        <!-- Cabecera de la sección con los botones -->
+        <!-- Cabecera de la sección con los botones organizados -->
         <div class="row align-items-center mb-3 main-heading pb-2">
             <div class="col-md-7">
                 <h2 class="text-primary m-0" style="font-size: 1.75rem;">Gestión de Jubilados y Afiliados</h2>
             </div>
             <div class="col-md-5 text-md-end mt-2 mt-md-0">
                 <!-- Botón de Planilla en Blanco -->
-                <a href="/api/planilla-en-blanco/pdf" target="_blank" class="btn btn-secondary me-2">
+                <a href="/api/planilla-en-blanco/pdf" target="_blank" class="btn btn-secondary me-1 btn-sm">
                     <i class="fas fa-file-pdf"></i> Planilla en Blanco
                 </a>
+                <!-- Botón Exportar Respaldo (.db) -->
+                <a href="/api/backup/exportar" class="btn btn-outline-success me-1 btn-sm" title="Descargar Respaldo de Base de Datos">
+                    <i class="fas fa-download"></i> Exportar BD
+                </a>
+                <!-- Botón Importar Respaldo (.db) -->
+                <button class="btn btn-outline-warning me-1 btn-sm text-dark" onclick="importarBaseDatosPrompt()" title="Restaurar Base de Datos">
+                    <i class="fas fa-upload"></i> Importar BD
+                </button>
+                <!-- Input oculto para seleccionar el archivo .db al importar -->
+                <input type="file" id="inputImportarDb" style="display: none;" accept=".db" onchange="procesarImportacionDb(event)">
+
                 <!-- Botón de Nuevo Registro -->
-                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalRegistro" id="btnNuevoRegistro">
+                <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modalRegistro" id="btnNuevoRegistro">
                     <i class="fas fa-plus"></i> Nuevo Registro
                 </button>
             </div>
@@ -225,10 +236,9 @@
         document.addEventListener('DOMContentLoaded', () => {
             cargarRegistros();
 
-            // Limpiar formulario al hacer clic en "Nuevo Registro"
             document.getElementById('btnNuevoRegistro').addEventListener('click', () => {
                 document.getElementById('formAfiliado').reset();
-                document.getElementById('registroId').value = ''; // ¡Borra el ID para que sea un POST limpio!
+                document.getElementById('registroId').value = '';
                 document.getElementById('ascendientesContainer').innerHTML = '';
                 document.getElementById('descendientesContainer').innerHTML = '';
                 document.getElementById('modalTitulo').innerText = 'Registrar Afiliado';
@@ -403,6 +413,40 @@
                     console.error(err);
                 }
             }
+        }
+
+        // Funciones para la Importación de la Base de Datos
+        function importarBaseDatosPrompt() {
+            document.getElementById('inputImportarDb').click();
+        }
+
+        async function procesarImportacionDb(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            if (!confirm('¿Estás seguro de importar esta base de datos? Se sobrescribirá la información actual con la del archivo seleccionado.')) {
+                event.target.value = '';
+                return;
+            }
+
+            try {
+                const response = await fetch('/api/backup/importar', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/octet-stream' },
+                    body: file
+                });
+                
+                const result = await response.json();
+                if (response.ok) {
+                    alert('¡Base de datos importada con éxito! La página se recargará para mostrar los datos actualizados.');
+                    location.reload();
+                } else {
+                    alert('Error al importar: ' + (result.error || 'Desconocido'));
+                }
+            } catch (err) {
+                alert('Error de red al conectar con el servidor.');
+            }
+            event.target.value = '';
         }
     </script>
 </body>

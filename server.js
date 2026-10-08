@@ -113,6 +113,7 @@ app.delete('/api/registros/:id', (req, res) => {
         res.json({ message: 'Eliminado con éxito' });
     });
 });
+
 // RUTA PDF: Generar Planilla en Blanco
 app.get('/api/planilla-en-blanco/pdf', (req, res) => {
     const doc = new PDFDocument({ size: 'LETTER', margin: 45 });
@@ -133,12 +134,12 @@ app.get('/api/planilla-en-blanco/pdf', (req, res) => {
         try { doc.image(logoPath, 45, 30, { width: 95, height: 70 }); } catch (e) {}
     }
 
-    doc.fontSize(11).font('Helvetica-Bold').text('ASOCIACIÓN DE JUBILADOS Y PENSIONADOS DE TELECOMUNICACIONES', 145, 38, { align: 'center', width: 390 });
-    doc.fontSize(12).text('AJUPTEL CARABOBO', { align: 'center', width: 390 });
-    doc.fontSize(8.5).font('Helvetica').text('PLANILLA DE INSCRIPCIÓN Y ACTUALIZACIÓN DE DATOS', { align: 'center', width: 390 });
+    doc.fontSize(11).font('Helvetica-Bold').text('ASOCIACIÓN DE JUBILADOS Y PENSIONADOS DE LAS TELECOMUNICACIONES', 145, 38, { align: 'center', width: 390 });
+    doc.fontSize(12).text('AJUPTEL CARABOBO RIF: ', { align: 'center', width: 390 });
+    doc.fontSize(9.5).font('Helvetica').text('PLANILLA DE INSCRIPCIÓN Y ACTUALIZACIÓN DE DATOS', { align: 'center', width: 390 });
 
     doc.moveDown(0.8);
-    doc.fontSize(8).font('Helvetica-Bold').text('( ACEPTO LA INSCRIPCION EN AJUPTEL CARABOBO Y AUTORIZANDO EL DESCUENTO DE MI CUENTA NÓMINA CANTV )', { align: 'center' });
+    doc.fontSize(8).font('Helvetica-Bold').text('( ACEPTO LA INSCRIPCION EN AJUPTEL CARABOBO Y AUTORIZO A CANTV A REALIZAR EL DESCUENTO DE MI CUENTA NÓMINA )', { align: 'center' });
     doc.moveDown(1.5);
 
     function drawField(label) {
@@ -299,6 +300,42 @@ app.get('/api/registros/:id/pdf', (req, res) => {
 
         doc.end();
     });
+});
+
+// ==========================================
+// MÓDULO DE EXPORTACIÓN E IMPORTACIÓN DE BD
+// ==========================================
+app.get('/api/backup/exportar', (req, res) => {
+    if (fs.existsSync(dbFile)) {
+        const fechaActual = new Date().toISOString().slice(0, 10);
+        res.download(dbFile, `ajuptel_backup_${fechaActual}.db`, (err) => {
+            if (err && !res.headersSent) {
+                res.status(500).json({ error: 'No se pudo descargar el respaldo.' });
+            }
+        });
+    } else {
+        res.status(404).json({ error: 'El archivo de base de datos no existe.' });
+    }
+});
+
+app.post('/api/backup/importar', express.raw({ type: 'application/octet-stream', limit: '10mb' }), (req, res) => {
+    const tempBackupPath = path.join(__dirname, 'temp_import.db');
+    try {
+        fs.writeFileSync(tempBackupPath, req.body);
+        db.close((err) => {
+            fs.copyFileSync(tempBackupPath, dbFile);
+            try { fs.unlinkSync(tempBackupPath); } catch(e){}
+            
+            global.db = new sqlite3.Database(dbFile, (dbErr) => {
+                if (dbErr) {
+                    return res.status(500).json({ error: 'Error al reiniciar la conexión con la base de datos.' });
+                }
+                res.json({ message: 'Base de datos importada y actualizada con éxito.' });
+            });
+        });
+    } catch (e) {
+        res.status(400).json({ error: 'Error procesando el archivo: ' + e.message });
+    }
 });
 
 app.listen(PORT, () => {
